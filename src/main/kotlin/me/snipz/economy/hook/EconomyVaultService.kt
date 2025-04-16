@@ -9,7 +9,7 @@ import net.milkbowl.vault.economy.EconomyResponse
 import org.bukkit.Bukkit
 import org.bukkit.OfflinePlayer
 
-@Suppress("OVERRIDE_DEPRECATION")
+@Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
 class EconomyVaultService(private val currencyName: String) : Economy {
 
     override fun isEnabled(): Boolean {
