@@ -1,6 +1,7 @@
 package me.snipz.economy.service
 
 import me.snipz.api.economy.EconomyTransactionResponse
+import me.snipz.api.economy.EconomyTransactionType
 import me.snipz.api.economy.ICurrency
 import me.snipz.api.economy.IEconomyService
 import me.snipz.economy.management.EconomyManager
@@ -13,16 +14,11 @@ class EconomyService : IEconomyService {
         uuid: UUID,
         currency: ICurrency,
         amount: Double,
-        type: me.snipz.api.economy.EconomyTransactionType
+        type: EconomyTransactionType
     ): CompletableFuture<EconomyTransactionResponse> {
         return EconomyManager.tryTransaction(uuid, currency, amount, type)
     }
 
-    override fun onEnable() {
-
-    }
-
-    override fun onDisable() {
-
-    }
+    override fun onEnable() {}
+    override fun onDisable() {}
 }

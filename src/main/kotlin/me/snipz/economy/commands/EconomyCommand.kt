@@ -87,7 +87,7 @@ class EconomyCommand(
                         return@executes 1
                     }
 
-                    EconomyManager.getUnloadedAccount(sender.uniqueId).thenAccept { account ->
+                    EconomyManager.getAccountFromDatabase(sender.uniqueId).thenAccept { account ->
                         plugin.locale.getMessage("your-balance")?.let { msg ->
                             sender.sendMessage(
                                 msg.toComponent().replaceText(
@@ -109,7 +109,7 @@ class EconomyCommand(
                             val target = StringArgumentType.getString(it, "target")
                             val targetId = Bukkit.getOfflinePlayer(target).uniqueId
 
-                            EconomyManager.getUnloadedAccount(targetId).thenAccept { account ->
+                            EconomyManager.getAccountFromDatabase(targetId).thenAccept { account ->
                                 plugin.locale.getMessage("other-balance")?.let { msg ->
                                     it.source.sender.sendMessage(
                                         msg.toComponent().replaceText(
@@ -153,7 +153,7 @@ class EconomyCommand(
             when (it) {
                 EconomyTransactionResponse.SUCCESS -> {
                     plugin.locale.getMessage("transaction-success")?.let { msg ->
-                        EconomyManager.getUnloadedAccount(target).thenAccept { account ->
+                        EconomyManager.getAccountFromDatabase(target).thenAccept { account ->
                             sender.sendLocaleMessage(
                                 msg.replace("{target}", targetName)
                                     .replace(

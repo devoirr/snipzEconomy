@@ -14,8 +14,9 @@ data class Account(val uuid: UUID, val balances: MutableMap<String, Double>, val
         var builder = Component.empty()
 
         for (entry in balances) {
-            builder =
-                builder.append("${EconomyManager.formatDouble(entry.value)}${CurrenciesManager.getCurrency(entry.key)!!.symbol} ".toComponent())
+            val format =
+                EconomyManager.formatDoubleToString(entry.value) + CurrenciesManager.getCurrency(entry.key)!!.symbol
+            builder = builder.append(format.toComponent())
         }
 
         return builder

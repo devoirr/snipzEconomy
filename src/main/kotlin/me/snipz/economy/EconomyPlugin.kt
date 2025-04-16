@@ -8,7 +8,6 @@ import me.snipz.economy.hook.EconomyVaultService
 import me.snipz.economy.management.CurrenciesManager
 import me.snipz.economy.management.EconomyManager
 import net.milkbowl.vault.economy.Economy
-import org.bukkit.Bukkit
 import org.bukkit.plugin.ServicePriority
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
@@ -18,20 +17,17 @@ class EconomyPlugin : JavaPlugin() {
 
     private lateinit var database: EconomyDatabase
     lateinit var locale: Messages
+
+    /**
+     * Локальные валюты записываются отдельно для всех серверов с их serverId.
+     */
     lateinit var serverId: String
 
     override fun onEnable() {
         this.saveDefaultConfig()
         this.saveResource("messages.json", false)
 
-        if (config.getKeys(false).contains("server-id")) {
-            serverId = config.getString("server-id")!!
-        } else {
-            serverId = UUID.randomUUID().toString().split("-")[0]
-            config.set("server-id", serverId)
-
-            saveConfig()
-        }
+        this.readOrCreateServerId()
 
         this.locale = Messages.load(File(dataFolder, "messages.json"))!!
         this.database = EconomyDatabase(DatabaseInfo.parse(config.getConfigurationSection("database")!!, this))
@@ -40,6 +36,10 @@ class EconomyPlugin : JavaPlugin() {
 
         EconomyPlaceholders().register()
 
+        this.hookIntoVault()
+    }
+
+    private fun hookIntoVault() {
         if (config.getKeys(false).contains("vault-currency")) {
             val vaultCurrency = config.getString("vault-currency") ?: return
 
@@ -52,6 +52,17 @@ class EconomyPlugin : JavaPlugin() {
                 this,
                 ServicePriority.High
             )
+        }
+    }
+
+    private fun readOrCreateServerId() {
+        if (config.getKeys(false).contains("server-id")) {
+            serverId = config.getString("server-id")!!
+        } else {
+            serverId = UUID.randomUUID().toString().split("-")[0]
+            config.set("server-id", serverId)
+
+            saveConfig()
         }
     }
 
