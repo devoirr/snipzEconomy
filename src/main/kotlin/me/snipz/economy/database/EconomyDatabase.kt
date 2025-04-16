@@ -2,11 +2,8 @@ package me.snipz.economy.database
 
 import com.j256.ormlite.dao.Dao
 import com.j256.ormlite.dao.DaoManager
-import com.j256.ormlite.field.DataType
-import com.j256.ormlite.field.DatabaseField
 import com.j256.ormlite.jdbc.JdbcConnectionSource
 import com.j256.ormlite.stmt.Where
-import com.j256.ormlite.table.DatabaseTable
 import com.j256.ormlite.table.TableUtils
 import me.snipz.api.database.DatabaseInfo
 import me.snipz.api.economy.EconomyTransactionResponse
@@ -15,42 +12,11 @@ import me.snipz.api.economy.ICurrency
 import me.snipz.api.runnable.QuickRunnable
 import me.snipz.economy.management.CurrenciesManager
 import me.snipz.economy.`object`.Account
+import me.snipz.economy.`object`.rows.AccountRow
+import me.snipz.economy.`object`.rows.CurrencyRow
 import java.util.*
 import java.util.concurrent.CompletableFuture
 
-@DatabaseTable(tableName = "currencies")
-class CurrencyRow {
-
-    @DatabaseField(columnName = "name", id = true, canBeNull = false)
-    lateinit var name: String
-
-    @DatabaseField(columnName = "global", dataType = DataType.BOOLEAN)
-    var global: Boolean = false
-
-    @DatabaseField(columnName = "symbol", dataType = DataType.STRING)
-    lateinit var symbol: String
-
-    @DatabaseField(columnName = "rookie", dataType = DataType.DOUBLE)
-    var rookie: Double = 0.0
-
-}
-
-@DatabaseTable(tableName = "accounts")
-class AccountRow {
-
-    @DatabaseField(columnName = "uuid", uniqueCombo = true, canBeNull = false, dataType = DataType.UUID)
-    lateinit var uuid: UUID
-
-    @DatabaseField(columnName = "currency", uniqueCombo = true, canBeNull = false)
-    lateinit var currency: String
-
-    @DatabaseField(columnName = "server", uniqueCombo = true, canBeNull = false)
-    lateinit var server: String
-
-    @DatabaseField(columnName = "amount", dataType = DataType.DOUBLE)
-    var amount: Double = 0.0
-
-}
 
 class EconomyDatabase(databaseInfo: DatabaseInfo) {
 
