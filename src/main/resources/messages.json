@@ -1,0 +1,12 @@
+{
+  "currency-not-found": "Валюта {name} не найдена.",
+  "your-balance": "Ваш баланс: &a{balance}",
+  "other-balance": "Баланс игрока {target}: &a{balance}",
+  "transaction-success": " \n &9&n|&f Транзакция прошла успешно... &9|&f Текущий баланс игрока: {balance} \n ",
+  "transaction-fail-no-money": "&fНа этом аккаунте недостаточно средств для такой транзакции!",
+  "exception": "Произошла непредвиденная ошибка, администрация разбирается...",
+  "payment-sent": " \n&9&n|&f Оплата прошла успешно! \n&9|&f Вы перевели {amount} на счет игрока &a{target}\n ",
+  "payment-received": " \n&9&n|&f Новый перевод! \n&9|&f Вы получили {amount} от игрока &a{sender}\n ",
+  "payment-not-enough-money": "На вашем счету недостаточно средств для такого перевода.",
+  "payment-cant-pay-self": "Вы не можете заплатить самому себе."
+}

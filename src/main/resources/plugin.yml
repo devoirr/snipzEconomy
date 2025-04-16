@@ -1,0 +1,6 @@
+name: snipzEconomy
+main: me.snipz.economy.EconomyPlugin
+version: "alpha-1"
+api-version: "1.21"
+depend:
+  - snipzApi

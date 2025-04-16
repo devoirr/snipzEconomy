@@ -1,0 +1,32 @@
+#
+#   Разработано devoirr в 2025
+#
+#   Плейсхолдеры:
+#     %economy_balance_<currency>% - Форматированный баланс (Например 20$)
+#     %economy_balance_<currency>_clear% - "Чистый" баланс (Например 20)
+#
+#   Настройка:
+#     Создаешь валюту:  /currency create <name>
+#     Устанавливаешь стандартное значение:  /currency rookie <name> <сумма>
+#     Если валюта меж-серверная:  /currency global <name> true
+#     Изменить символ валюты: /currency symbol <name> <символ>
+#
+#     Посмотреть текущие валюты:  /currencies
+#     Настраиваешь так все валюты, когда всё готово /currencies publish.
+#
+#   Команды:
+#     /economy <add/set/take> <name> <currency> <amount> - Изменить баланс игрока. (economy.admin)
+#     /currency - Настройка валюты (economy.admin)
+#     /balance (Игрок) - Посмотреть баланс игрока (economy.command.balance / economy.command.balance.other)
+#     /pay <Игрок> <Сумма> - Перевести деньги игроку - economy.command.pay
+#
+
+# Можно не указывать, тогда не будет подключения к Vault.
+vault-currency: 'dollars'
+
+# Можно не указывать, тогда команда /pay не будет работать.
+payment-currency: 'dollars'
+
+database:
+  type: SQLITE
+  file-name: 'economy'
