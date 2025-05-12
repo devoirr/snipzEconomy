@@ -9,9 +9,10 @@ import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import io.papermc.paper.command.brigadier.MessageComponentSerializer
 import io.papermc.paper.command.brigadier.argument.CustomArgumentType
-import me.snipz.api.toComponent
+import me.snipz.economy.EconomyLocale
 import me.snipz.economy.EconomyPlugin
 import me.snipz.economy.management.CurrenciesManager
+import me.snipz.economy.toComponent
 import java.util.concurrent.CompletableFuture
 
 class CurrencyArgumentType(private val plugin: EconomyPlugin) :
@@ -25,7 +26,7 @@ class CurrencyArgumentType(private val plugin: EconomyPlugin) :
         val currency = CurrenciesManager.getCurrency(p0)
 
         if (currency == null) {
-            val text = plugin.locale.getMessage("currency-not-found")?.replace("{name}", p0) ?: "Валюта $p0 не найдена."
+            val text = plugin.msgConfig.getMessage(EconomyLocale.CURRENCY_NOT_FOUND).getAsSingleLine()
 
             val message = MessageComponentSerializer.message().serialize(text.toComponent())
             throw CommandSyntaxException(SimpleCommandExceptionType(message), message)

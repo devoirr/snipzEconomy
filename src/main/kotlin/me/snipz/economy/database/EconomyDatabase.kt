@@ -1,102 +1,123 @@
 package me.snipz.economy.database
 
-import com.j256.ormlite.dao.Dao
-import com.j256.ormlite.dao.DaoManager
-import com.j256.ormlite.jdbc.JdbcConnectionSource
-import com.j256.ormlite.stmt.Where
-import com.j256.ormlite.table.TableUtils
-import me.snipz.api.database.DatabaseInfo
-import me.snipz.api.economy.EconomyTransactionResponse
-import me.snipz.api.economy.EconomyTransactionType
-import me.snipz.api.economy.ICurrency
-import me.snipz.api.runnable.QuickRunnable
+import com.google.common.cache.CacheBuilder
+import me.snipz.database.GeneralDatabase
+import me.snipz.economy.api.EconomyTransactionResponse
+import me.snipz.economy.api.EconomyTransactionType
+import me.snipz.economy.api.ICurrency
 import me.snipz.economy.management.CurrenciesManager
 import me.snipz.economy.`object`.Account
-import me.snipz.economy.`object`.rows.AccountRow
-import me.snipz.economy.`object`.rows.CurrencyRow
+import org.bukkit.plugin.Plugin
+import org.bukkit.scheduler.BukkitRunnable
+import java.time.Duration
 import java.util.*
 import java.util.concurrent.CompletableFuture
 
 
-class EconomyDatabase(databaseInfo: DatabaseInfo) {
+class EconomyDatabase(
+    private val plugin: Plugin,
+    private val database: GeneralDatabase,
+    cacheTime: Int
+) {
 
-    private val currenciesDao: Dao<CurrencyRow, String>
-    private val accountsDao: Dao<AccountRow, String>
-
-    private val connectionSource = JdbcConnectionSource(databaseInfo.connectionString)
+    private val cache =
+        CacheBuilder.newBuilder().concurrencyLevel(4).expireAfterWrite(Duration.ofSeconds(cacheTime.toLong()))
+            .build<UUID, Account>()
 
     init {
-        TableUtils.createTableIfNotExists(connectionSource, CurrencyRow::class.java)
-        TableUtils.createTableIfNotExists(connectionSource, AccountRow::class.java)
+        database.update(
+            "create table if not exists currencies(name varchar(32) primary key, global bool, symbol varchar(16));"
+        )
 
-        this.currenciesDao = DaoManager.createDao(connectionSource, CurrencyRow::class.java)
-        this.accountsDao = DaoManager.createDao(connectionSource, AccountRow::class.java)
+        database.update(
+            "create table if not exists accounts (player varchar(36), server varchar(36), currency varchar(32), amount double, primary key (player, server, currency));"
+        )
     }
 
     fun getAllCurrencies(): CompletableFuture<List<CurrenciesManager.Currency>> {
         return CompletableFuture.supplyAsync {
-            val list = currenciesDao.queryForAll()
+            val list = mutableListOf<CurrenciesManager.Currency>()
+            database.query("select * from currencies;", { resultSet ->
+                while (resultSet.next()) {
+                    list.add(
+                        CurrenciesManager.Currency(
+                            resultSet.getString("name"),
+                            resultSet.getBoolean("global"),
+                            resultSet.getString("symbol"),
+                        )
+                    )
+                }
+            })
 
-            return@supplyAsync list.map { CurrenciesManager.Currency(it.name, it.global, it.symbol, it.rookie) }
+            return@supplyAsync list
         }
     }
 
     fun publishCurrencies(list: List<CurrenciesManager.Currency>) {
-        QuickRunnable.runAsync {
-            TableUtils.clearTable(connectionSource, CurrencyRow::class.java)
+        object : BukkitRunnable() {
+            override fun run() {
+                database.update("delete from currencies;")
 
-            for (currency in list) {
-                val row = CurrencyRow().apply {
-                    this.name = currency.name
-                    this.symbol = currency.symbol
-                    this.global = currency.global
-                    this.rookie = currency.rookie
+                for (currency in list) {
+                    database.update(
+                        "insert into currencies values(?,?,?)",
+                        currency.name,
+                        currency.global,
+                        currency.symbol
+                    )
                 }
-
-                currenciesDao.create(row)
             }
+        }.runTaskAsynchronously(plugin)
+    }
+
+    fun getOrGetEmptyAndLoad(uuid: UUID, server: String): Account {
+        cache.getIfPresent(uuid)?.let {
+            return it
         }
+
+        val account = Account(uuid, mutableMapOf(), false)
+
+        object : BukkitRunnable() {
+            override fun run() {
+                getAccount(uuid, server).thenAccept { a ->
+                    cache.put(uuid, account)
+                }
+            }
+        }.runTaskAsynchronously(plugin)
+
+        return account
     }
 
     fun getAccount(uuid: UUID, serverId: String): CompletableFuture<Account> {
         return CompletableFuture.supplyAsync {
             try {
                 val balances = mutableMapOf<String, Double>()
+                database.query(
+                    "select currency, amount from accounts where player=? and (server=? or server='global')",
+                    { resultSet ->
+                        while (resultSet.next()) {
+                            balances[resultSet.getString("currency")] = resultSet.getDouble("amount")
+                        }
+                    },
+                    uuid.toString(),
+                    serverId
+                )
 
-                val currencies = currenciesDao.queryForAll()
-                for (currency in currencies) {
-                    val balanceBuilder = accountsDao.queryBuilder()
-
-                    val server = if (currency.global) "global" else serverId
-
-                    balanceBuilder.where()
-                        .eq("uuid", uuid)
-                        .and()
-                        .eq("currency", currency.name)
-                        .and()
-                        .eq("server", server)
-
-                    val balance = balanceBuilder.queryForFirst()
-
-                    val amount = balance?.amount ?: currency.rookie
-                    balances[currency.name] = amount
+                CurrenciesManager.get().forEach { currency ->
+                    if (!balances.containsKey(currency.name)) {
+                        balances[currency.name] = 0.0
+                    }
                 }
 
-                return@supplyAsync Account(uuid, balances)
+                val account = Account(uuid, balances)
+                cache.put(uuid, account)
+
+                return@supplyAsync account
             } catch (e: Exception) {
                 e.printStackTrace()
-                return@supplyAsync Account(uuid, mutableMapOf<String, Double>(), true)
+                return@supplyAsync Account(uuid, mutableMapOf(), true)
             }
         }
-    }
-
-    private fun Where<AccountRow, String>.matchServerOrGlobal(
-        server: String,
-        global: Boolean
-    ): Where<AccountRow, String> {
-        return if (global)
-            this.eq("server", "global")
-        else this.eq("server", server)
     }
 
     fun tryTransaction(
@@ -106,7 +127,6 @@ class EconomyDatabase(databaseInfo: DatabaseInfo) {
         type: EconomyTransactionType,
         server: String
     ): CompletableFuture<EconomyTransactionResponse> {
-
         if (amount < 0) {
             return CompletableFuture.supplyAsync {
                 return@supplyAsync EconomyTransactionResponse.AMOUNT_NEGATIVE
@@ -115,43 +135,37 @@ class EconomyDatabase(databaseInfo: DatabaseInfo) {
 
         return CompletableFuture.supplyAsync {
             try {
-                var queryBuilder = accountsDao.queryBuilder()
-                    .where()
-                    .eq("uuid", uuid)
-                    .and()
-                    .eq("currency", currency.name())
-                    .and()
-                    .matchServerOrGlobal(server, currency.global())
-
-                if (type == EconomyTransactionType.TAKE) {
-                    queryBuilder = queryBuilder.and().ge("amount", amount)
-                }
-
-                var first = queryBuilder.queryForFirst()
-                var isCreated = true
-
-                if (first == null) {
-                    if (type == EconomyTransactionType.TAKE) {
-                        return@supplyAsync EconomyTransactionResponse.NOT_ENOUGH_MONEY
+                val expression = when (type) {
+                    EconomyTransactionType.TAKE -> {
+                        "amount - $amount"
                     }
 
-                    isCreated = false
+                    EconomyTransactionType.ADD -> {
+                        "amount + $amount"
+                    }
 
-                    first = AccountRow().apply {
-                        this.uuid = uuid
-                        this.server = if (currency.global()) "global" else server
-                        this.currency = currency.name()
-                        this.amount = currency.rookie()
+                    EconomyTransactionType.SET -> {
+                        "$amount"
                     }
                 }
 
-                type.apply(first, amount)
+                val server = if (currency.global()) "global" else server
+                val where = if (type == EconomyTransactionType.TAKE) " and amount>=$amount;" else ""
 
-                if (isCreated) {
-                    updateAmountForAccount(currency, uuid, type.toExpression(amount), server)
-                } else {
-                    accountsDao.create(first)
-                }
+                val sql =
+                    "update accounts set amount=$expression where player=? and server=? and currency=?$where"
+
+                val updated = database.update(
+                    sql,
+                    uuid.toString(),
+                    server,
+                    currency.name(),
+                )
+
+                if (updated == 0)
+                    return@supplyAsync EconomyTransactionResponse.NOTHING_CHANGED
+
+                cache.invalidate(uuid)
 
                 return@supplyAsync EconomyTransactionResponse.SUCCESS
             } catch (e: Exception) {
@@ -175,110 +189,54 @@ class EconomyDatabase(databaseInfo: DatabaseInfo) {
         }
 
         return CompletableFuture.supplyAsync {
-            val account = getAccount(sender, server).join()
-            if (account.getBalance(currency.name()) < amount)
-                return@supplyAsync EconomyTransactionResponse.NOT_ENOUGH_MONEY
+            val updated =
+                database.update(
+                    "update accounts set amount=amount-$amount where amount >= $amount and currency=? and player = ? and (server = 'global' or server=?);",
+                    currency.name(),
+                    sender.toString(),
+                    server
+                )
 
-            val senderAccountPair = findOrCreateAccount(sender, currency, server)
-            val senderAccount = senderAccountPair.first
-
-            senderAccount.amount -= amount
-            if (senderAccountPair.second) {
-                updateAmountForAccount(currency, sender, "amount-$amount", server)
-            } else {
-                accountsDao.create(senderAccount)
+            if (updated == 0) {
+                return@supplyAsync EconomyTransactionResponse.NOTHING_CHANGED
             }
 
-            val receiverAccountPair = findOrCreateAccount(receiver, currency, server)
-            val receiverAccount = receiverAccountPair.first
+            database.update(
+                "update accounts set amount=amount-$amount where currency=? and player = ? and (server = 'global' or server=?);",
+                currency.name(),
+                receiver.toString(),
+                server
+            )
 
-            receiverAccount.amount += amount
-            if (receiverAccountPair.second) {
-                updateAmountForAccount(currency, receiver, "amount+$amount", server)
-            } else {
-                accountsDao.create(receiverAccount)
-            }
+            cache.invalidate(receiver)
+            cache.invalidate(sender)
 
             return@supplyAsync EconomyTransactionResponse.SUCCESS
         }
     }
 
-    private fun findOrCreateAccount(uuid: UUID, currency: ICurrency, server: String): Pair<AccountRow, Boolean> {
-        var account = findAccount(uuid, currency, server)
-        val created = account != null
+    fun createAccount(
+        uuid: UUID,
+        server: String
+    ) {
+        object : BukkitRunnable() {
+            override fun run() {
+                CurrenciesManager.get().forEach { currency ->
+                    var exists = false
+                    database.query("select * from accounts where player=? and server=? and currency=?", { rs ->
+                        exists = rs.next()
+                    }, uuid.toString(), if (currency.global) "global" else server, currency.name)
 
-        if (account == null) {
-            account = AccountRow().apply {
-                this.uuid = uuid
-                this.currency = currency.name()
-                this.amount = currency.rookie()
-                this.server = if (currency.global()) "global" else server
+                    if (!exists)
+                        database.update(
+                            "insert into accounts(player, server, currency, amount) values (?,?,?,?)",
+                            uuid.toString(),
+                            if (currency.global) "global" else server,
+                            currency.name,
+                            0.0
+                        )
+                }
             }
-        }
-
-        return account to created
+        }.runTaskAsynchronously(plugin)
     }
-
-    private fun updateAmountForAccount(currency: ICurrency, uuid: UUID, expression: String, server: String) {
-        val updateBuilder = accountsDao.updateBuilder()
-
-        updateBuilder.setWhere(
-            updateBuilder.where()
-                .eq("uuid", uuid)
-                .and()
-                .eq("server", if (currency.global()) "global" else server)
-                .and()
-                .eq("currency", currency.name())
-        )
-
-        updateBuilder.updateColumnValue("amount", expression)
-        updateBuilder.update()
-    }
-
-    private fun findAccount(uuid: UUID, currency: ICurrency, server: String): AccountRow? {
-        val queryBuilder = accountsDao.queryBuilder()
-            .where()
-            .eq("uuid", uuid)
-            .and()
-            .eq("currency", currency.name())
-            .and()
-            .matchServerOrGlobal(server, currency.global())
-
-        val first = queryBuilder.queryForFirst()
-
-        return first
-    }
-
-    private fun EconomyTransactionType.apply(row: AccountRow, amount: Double) {
-        when (this) {
-            EconomyTransactionType.ADD -> {
-                row.amount += amount
-            }
-
-            EconomyTransactionType.TAKE -> {
-                row.amount -= amount
-            }
-
-            EconomyTransactionType.SET -> {
-                row.amount = amount
-            }
-        }
-    }
-
-    private fun EconomyTransactionType.toExpression(amount: Double): String {
-        return when (this) {
-            EconomyTransactionType.ADD -> {
-                "amount+$amount"
-            }
-
-            EconomyTransactionType.SET -> {
-                "$amount"
-            }
-
-            EconomyTransactionType.TAKE -> {
-                "amount-$amount"
-            }
-        }
-    }
-
 }

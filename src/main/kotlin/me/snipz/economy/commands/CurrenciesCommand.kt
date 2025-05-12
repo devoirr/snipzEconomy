@@ -1,7 +1,6 @@
 package me.snipz.economy.commands
 
 import com.mojang.brigadier.arguments.BoolArgumentType
-import com.mojang.brigadier.arguments.DoubleArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import io.papermc.paper.command.brigadier.Commands
 import me.snipz.economy.EconomyPlugin
@@ -58,7 +57,7 @@ class CurrenciesCommand(private val plugin: EconomyPlugin) {
                                         return@executes 1
                                     }
 
-                                    val currency = CurrenciesManager.Currency(name, false, "", 0.0)
+                                    val currency = CurrenciesManager.Currency(name, false, "")
                                     CurrenciesManager.add(currency.name, currency)
 
                                     ctx.source.sender.sendMessage("Валюта $name сохранена.")
@@ -80,25 +79,6 @@ class CurrenciesCommand(private val plugin: EconomyPlugin) {
 
                                     return@executes 1
                                 }
-                        )
-                )
-                .then(
-                    Commands.literal("rookie")
-                        .then(
-                            Commands.argument("currency", CurrencyArgumentType(plugin))
-                                .then(
-                                    Commands.argument("amount", DoubleArgumentType.doubleArg(0.0))
-                                        .executes { ctx ->
-                                            val currency =
-                                                ctx.getArgument("currency", CurrenciesManager.Currency::class.java)
-                                            val amount = DoubleArgumentType.getDouble(ctx, "amount")
-
-                                            currency.rookie = amount
-
-                                            ctx.source.sender.sendMessage("Базовое значение валюты ${currency.name} установлено на $amount")
-
-                                            return@executes 1
-                                        })
                         )
                 )
                 .then(

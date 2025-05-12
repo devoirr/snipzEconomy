@@ -1,9 +1,10 @@
 package me.snipz.economy.hook
 
-import me.snipz.api.economy.EconomyTransactionResponse
-import me.snipz.api.economy.EconomyTransactionType
+import me.snipz.economy.api.EconomyTransactionResponse
+import me.snipz.economy.api.EconomyTransactionType
 import me.snipz.economy.management.CurrenciesManager
 import me.snipz.economy.management.EconomyManager
+import me.snipz.economy.`object`.Account.Companion.formatDoubleToString
 import net.milkbowl.vault.economy.Economy
 import net.milkbowl.vault.economy.EconomyResponse
 import org.bukkit.Bukkit
@@ -29,7 +30,7 @@ class EconomyVaultService(private val currencyName: String) : Economy {
     }
 
     override fun format(p0: Double): String {
-        return EconomyManager.formatDoubleToString(p0)
+        return formatDoubleToString(p0)
     }
 
     override fun currencyNamePlural(): String {

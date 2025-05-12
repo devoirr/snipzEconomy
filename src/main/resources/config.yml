@@ -27,6 +27,9 @@ vault-currency: 'dollars'
 # Можно не указывать, тогда команда /pay не будет работать.
 payment-currency: 'dollars'
 
+# Время кэширования в секундах. Лучше не трогать.
+cache-time: 60
+
 database:
-  type: SQLITE
+  type: h2
   file-name: 'economy'

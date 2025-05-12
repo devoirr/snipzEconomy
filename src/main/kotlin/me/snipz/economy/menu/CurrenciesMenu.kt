@@ -1,11 +1,11 @@
 package me.snipz.economy.menu
 
-import me.snipz.api.gui.item.FillerButton
-import me.snipz.api.gui.item.GUIButton
-import me.snipz.api.gui.pagination.FillersData
-import me.snipz.api.gui.pagination.PaginatedGUI
-import me.snipz.api.toComponent
 import me.snipz.economy.management.CurrenciesManager
+import me.snipz.economy.toComponent
+import me.snipz.gui.item.FillerButton
+import me.snipz.gui.item.GUIButton
+import me.snipz.gui.pagination.FillersData
+import me.snipz.gui.pagination.PaginatedGUI
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.Material
@@ -70,7 +70,6 @@ class CurrenciesMenu(player: Player, private val currencies: List<CurrenciesMana
                     it.lore(
                         listOf(
                             Component.text(" "),
-                            "&f По умолчанию: &a${currency.rookie}".toComponent(),
                             "&f Вид синхронизации: &a${currency.global.toSyncType()}".toComponent(),
                             "&f Символ: &a${currency.symbol}".toComponent(),
                             Component.text(" ")

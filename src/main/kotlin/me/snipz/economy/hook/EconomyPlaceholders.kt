@@ -43,9 +43,7 @@ class EconomyPlaceholders : PlaceholderExpansion() {
 
         val clear = args.last() == "clear"
 
-        val balance = EconomyManager.formatDoubleToString(
-            EconomyManager.forceAccount(player.uniqueId).balances[currencyName] ?: 0.0
-        )
+        val balance = EconomyManager.getOrGetEmptyAndLoad(player.uniqueId).getPlaceholderBalance(currencyName)
 
         if (clear)
             return balance

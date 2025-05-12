@@ -16,11 +16,16 @@ repositories {
 
 dependencies {
     compileOnly("org.purpurmc.purpur", "purpur-api", "1.21.3-R0.1-SNAPSHOT")
-    implementation("com.j256.ormlite:ormlite-jdbc:6.1")
     implementation("com.github.retrooper:packetevents-spigot:2.7.0")
     compileOnly("me.clip:placeholderapi:2.11.6")
-    compileOnly(files("/Users/romanrudoy/Developer/snipzEconomy/snipzApi.jar"))
+//    compileOnly(files("/Users/romanrudoy/Developer/BenioApi.jar"))
     compileOnly("com.github.MilkBowl:VaultAPI:1.7")
+    compileOnly("com.zaxxer:HikariCP:6.3.0")
+
+    compileOnly("com.github.devoirr:snipzGUI:alpha")
+    compileOnly("com.github.devoirr:snipzLocales:alpha-6")
+    compileOnly("com.github.devoirr:snipzDatabase:alpha-5")
+    compileOnly("com.github.devoirr:snipzEcoApi:alpha-2")
 }
 
 
