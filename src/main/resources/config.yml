@@ -22,13 +22,18 @@
 #
 
 # Можно не указывать, тогда не будет подключения к Vault.
-vault-currency: 'dollars'
+vault-currency: 'coin'
 
 # Можно не указывать, тогда команда /pay не будет работать.
-payment-currency: 'dollars'
+payment-currency: 'coin'
 
-# Время кэширования в секундах. Лучше не трогать.
-cache-time: 60
+currencies:
+  coin:
+    global: false
+    symbol: '面'
+  diamond:
+    global: true
+    symbol: '万'
 
 database:
   type: h2

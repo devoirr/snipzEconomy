@@ -10,7 +10,6 @@ import me.snipz.economy.hook.EconomyPlaceholders
 import me.snipz.economy.hook.EconomyServiceHook
 import me.snipz.economy.hook.EconomyVaultService
 import me.snipz.economy.hook.UsersListener
-import me.snipz.economy.management.CurrenciesManager
 import me.snipz.economy.management.EconomyManager
 import me.snipz.locales.LocalesRegistry
 import me.snipz.locales.objects.LocaleConfig
@@ -47,7 +46,7 @@ class EconomyPlugin : JavaPlugin() {
         EconomyManager.onEnable(this, database)
         EconomyPlaceholders().register()
 
-        this.server.pluginManager.registerEvents(UsersListener(database, serverId), this)
+        this.server.pluginManager.registerEvents(UsersListener(), this)
 
         server.servicesManager.register(
             EconomyService::class.java,
@@ -81,14 +80,11 @@ class EconomyPlugin : JavaPlugin() {
 
     private fun initDatabase() {
         val type = config.getString("database.type")?.lowercase() ?: "h2"
-        val cache = config.getInt("cache-time")
 
         if (type == "h2") {
             val fileName = (config.getString("database.file-name") ?: "database") + ".db"
             this.database = EconomyDatabase(
-                this,
                 H2Database(File(dataFolder, fileName).absolutePath),
-                cache
             )
         } else if (type == "mysql") {
             val host = config.getString("database.host") ?: "localhost"
@@ -98,9 +94,7 @@ class EconomyPlugin : JavaPlugin() {
             val password = config.getString("database.password") ?: "password"
 
             this.database = EconomyDatabase(
-                this,
                 MySQLDatabase(host, port, db, username, password, 8),
-                cache
             )
         }
     }
@@ -109,14 +103,11 @@ class EconomyPlugin : JavaPlugin() {
         if (config.getKeys(false).contains("vault-currency")) {
             val vaultCurrency = config.getString("vault-currency") ?: return
 
-            if (!CurrenciesManager.isCurrency(vaultCurrency))
-                return
-
             server.servicesManager.register(
                 Economy::class.java,
                 EconomyVaultService(vaultCurrency),
                 this,
-                ServicePriority.High
+                ServicePriority.Highest
             )
         }
     }

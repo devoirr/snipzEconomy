@@ -1,22 +1,21 @@
 package me.snipz.economy.hook
 
-import me.snipz.economy.database.EconomyDatabase
+import me.snipz.economy.management.EconomyManager
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent
-import java.util.*
+import org.bukkit.event.player.PlayerQuitEvent
 
-class UsersListener(private val database: EconomyDatabase, private val server: String) : Listener {
-
-    private val uuids = mutableListOf<UUID>()
+class UsersListener : Listener {
 
     @EventHandler
     fun onLogIn(event: AsyncPlayerPreLoginEvent) {
-        if (event.uniqueId in uuids)
-            return
+        EconomyManager.loadAccount(event.uniqueId)
+    }
 
-        database.createAccount(event.uniqueId, server)
-        uuids.add(event.uniqueId)
+    @EventHandler
+    fun onQuit(event: PlayerQuitEvent) {
+        EconomyManager.unloadAccount(event.player.uniqueId)
     }
 
 }

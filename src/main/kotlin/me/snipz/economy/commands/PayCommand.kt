@@ -3,6 +3,9 @@ package me.snipz.economy.commands
 import com.mojang.brigadier.arguments.DoubleArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import io.papermc.paper.command.brigadier.Commands
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import me.snipz.economy.EconomyLocale
 import me.snipz.economy.EconomyPlugin
 import me.snipz.economy.api.EconomyTransactionResponse
@@ -45,40 +48,44 @@ class PayCommand(private val plugin: EconomyPlugin) {
 
                                     val targetPlayer = Bukkit.getPlayer(targetUUID)
 
-                                    EconomyManager.tryTransfer(
-                                        player.uniqueId,
-                                        targetUUID,
-                                        CurrenciesManager.getCurrency(currency)!!,
-                                        amount
-                                    ).thenAccept { result ->
-                                        when (result) {
-                                            EconomyTransactionResponse.SUCCESS -> {
-                                                plugin.msgConfig.getMessage(
-                                                    EconomyLocale.PAYMENT_SENT,
-                                                ).send(player, "{amount}" to amountString, "{target}" to targetName)
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        val result = EconomyManager.tryTransfer(
+                                            player.uniqueId,
+                                            targetUUID,
+                                            CurrenciesManager.getCurrency(currency)!!,
+                                            amount
+                                        )
 
-                                                if (targetPlayer != null) {
+                                        Bukkit.getScheduler().runTask(plugin, Runnable {
+                                            when (result) {
+                                                EconomyTransactionResponse.SUCCESS -> {
                                                     plugin.msgConfig.getMessage(
-                                                        EconomyLocale.PAYMENT_RECEIVED,
-                                                    ).send(
-                                                        targetPlayer,
-                                                        "{sender}" to player.name,
-                                                        "{amount}" to amountString
-                                                    )
+                                                        EconomyLocale.PAYMENT_SENT,
+                                                    ).send(player, "{amount}" to amountString, "{target}" to targetName)
+
+                                                    if (targetPlayer != null) {
+                                                        plugin.msgConfig.getMessage(
+                                                            EconomyLocale.PAYMENT_RECEIVED,
+                                                        ).send(
+                                                            targetPlayer,
+                                                            "{sender}" to player.name,
+                                                            "{amount}" to amountString
+                                                        )
+                                                    }
+                                                }
+
+                                                EconomyTransactionResponse.NOTHING_CHANGED -> {
+                                                    plugin.msgConfig.getMessage(
+                                                        EconomyLocale.PAYMENT_NOT_ENOUGH_MONEY
+                                                    ).send(player)
+                                                }
+
+                                                else -> {
+                                                    plugin.msgConfig.getMessage(EconomyLocale.EXCEPTION)
+                                                        .send(player)
                                                 }
                                             }
-
-                                            EconomyTransactionResponse.NOTHING_CHANGED -> {
-                                                plugin.msgConfig.getMessage(
-                                                    EconomyLocale.PAYMENT_NOT_ENOUGH_MONEY
-                                                ).send(player)
-                                            }
-
-                                            else -> {
-                                                plugin.msgConfig.getMessage(EconomyLocale.EXCEPTION)
-                                                    .send(player)
-                                            }
-                                        }
+                                        })
                                     }
 
                                     return@executes 1

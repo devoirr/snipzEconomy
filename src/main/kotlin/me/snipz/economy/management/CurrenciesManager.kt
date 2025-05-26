@@ -1,11 +1,9 @@
 package me.snipz.economy.management
 
 import me.snipz.economy.api.ICurrency
-import me.snipz.economy.database.EconomyDatabase
+import org.bukkit.configuration.file.FileConfiguration
 
 object CurrenciesManager {
-
-    private lateinit var economyDatabase: EconomyDatabase
 
     data class Currency(val name: String, var global: Boolean, var symbol: String) : ICurrency {
         override fun name(): String {
@@ -19,13 +17,17 @@ object CurrenciesManager {
 
     private val currencies = mutableMapOf<String, Currency>()
 
-    fun onEnable(economyDatabase: EconomyDatabase) {
-        this.economyDatabase = economyDatabase
+    fun onEnable(config: FileConfiguration) {
+        val section = config.getConfigurationSection("currencies") ?: return
+        val sections = section.getKeys(false).mapNotNull { section.getConfigurationSection(it) }
 
-        economyDatabase.getAllCurrencies().thenAccept { list ->
-            list.forEach { currency ->
-                currencies[currency.name] = currency
-            }
+        sections.forEach { sec ->
+            val name = sec.name
+
+            val global = sec.getBoolean("global", false)
+            val symbol = sec.getString("symbol", "$") ?: "$"
+
+            currencies[name] = Currency(name, global, symbol)
         }
     }
 
@@ -37,15 +39,4 @@ object CurrenciesManager {
 
     fun get() = currencies.values
 
-    fun delete(name: String) {
-        currencies.remove(name)
-    }
-
-    fun add(name: String, currency: Currency) {
-        currencies[name] = currency
-    }
-
-    fun publish() {
-        economyDatabase.publishCurrencies(currencies.values.toList())
-    }
 }

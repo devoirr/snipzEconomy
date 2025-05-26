@@ -8,15 +8,15 @@ enum class EconomyTransactionType {
 
     fun toExpression(amount: Double): String {
         return when (this) {
-            EconomyTransactionType.ADD -> {
+            ADD -> {
                 "amount+$amount"
             }
 
-            EconomyTransactionType.SET -> {
+            SET -> {
                 "$amount"
             }
 
-            EconomyTransactionType.TAKE -> {
+            TAKE -> {
                 "amount-$amount"
             }
         }

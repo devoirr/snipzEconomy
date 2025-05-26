@@ -1,5 +1,6 @@
 package me.snipz.economy.hook
 
+import kotlinx.coroutines.runBlocking
 import me.clip.placeholderapi.expansion.PlaceholderExpansion
 import me.snipz.economy.management.CurrenciesManager
 import me.snipz.economy.management.EconomyManager
@@ -43,7 +44,11 @@ class EconomyPlaceholders : PlaceholderExpansion() {
 
         val clear = args.last() == "clear"
 
-        val balance = EconomyManager.getOrGetEmptyAndLoad(player.uniqueId).getPlaceholderBalance(currencyName)
+        val account = runBlocking {
+            return@runBlocking EconomyManager.getAccount(player.uniqueId)
+        }
+
+        val balance = account.getPlaceholderBalance(currencyName)
 
         if (clear)
             return balance

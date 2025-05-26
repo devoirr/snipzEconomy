@@ -5,6 +5,9 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.context.CommandContext
 import io.papermc.paper.command.brigadier.CommandSourceStack
 import io.papermc.paper.command.brigadier.Commands
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import me.snipz.economy.EconomyLocale
 import me.snipz.economy.EconomyPlugin
 import me.snipz.economy.api.EconomyTransactionResponse
@@ -15,7 +18,6 @@ import me.snipz.economy.management.EconomyManager
 import me.snipz.economy.`object`.Account.Companion.formatDouble
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
-import org.bukkit.scheduler.BukkitRunnable
 
 class EconomyCommand(
     private val plugin: EconomyPlugin
@@ -86,19 +88,14 @@ class EconomyCommand(
                         return@executes 1
                     }
 
-                    object : BukkitRunnable() {
-                        override fun run() {
-                            EconomyManager.getAccountFromDatabase(sender.uniqueId).thenAccept { account ->
-                                object : BukkitRunnable() {
-                                    override fun run() {
-                                        plugin.msgConfig.getMessage(EconomyLocale.YOUR_BALANCE)
-                                            .send(sender, "{balance}" to account.getBalanceString())
-                                    }
-                                }.runTask(plugin)
-                            }
-                        }
-                    }.runTaskAsynchronously(plugin)
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val account = EconomyManager.getAccount(sender.uniqueId)
 
+                        Bukkit.getScheduler().runTask(plugin, Runnable {
+                            plugin.msgConfig.getMessage(EconomyLocale.YOUR_BALANCE)
+                                .send(sender, "{balance}" to account.getBalanceString())
+                        })
+                    }
                     return@executes 1
                 }
                 .then(
@@ -109,22 +106,17 @@ class EconomyCommand(
                             val target = StringArgumentType.getString(it, "target")
                             val targetId = Bukkit.getOfflinePlayer(target).uniqueId
 
-                            object : BukkitRunnable() {
-                                override fun run() {
-                                    EconomyManager.getAccountFromDatabase(targetId).thenAccept { account ->
-                                        object : BukkitRunnable() {
-                                            override fun run() {
-                                                plugin.msgConfig.getMessage(EconomyLocale.OTHER_BALANCE)
-                                                    .send(
-                                                        it.source.sender,
-                                                        "{balance}" to account.getBalanceString(),
-                                                        "{target}" to target
-                                                    )
-                                            }
-                                        }.runTask(plugin)
-                                    }
-                                }
-                            }.runTaskAsynchronously(plugin)
+                            CoroutineScope(Dispatchers.IO).launch {
+                                val account = EconomyManager.getAccount(targetId)
+                                Bukkit.getScheduler().runTask(plugin, Runnable {
+                                    plugin.msgConfig.getMessage(EconomyLocale.OTHER_BALANCE)
+                                        .send(
+                                            it.source.sender,
+                                            "{balance}" to account.getBalanceString(),
+                                            "{target}" to target
+                                        )
+                                })
+                            }
 
                             return@executes 1
                         }
@@ -147,50 +139,43 @@ class EconomyCommand(
             CurrenciesManager.Currency::class.java
         )
 
-        object : BukkitRunnable() {
-            override fun run() {
-                EconomyManager.tryTransaction(
-                    target,
-                    currency,
-                    amount,
-                    type
-                ).thenAccept {
-                    when (it) {
-                        EconomyTransactionResponse.SUCCESS -> {
-                            EconomyManager.getAccountFromDatabase(target).thenAccept { account ->
-                                plugin.msgConfig.getMessage(EconomyLocale.TRANSACTION_SUCCESS)
-                                    .send(sender, "{balance}" to account.getBalanceString())
-                            }
+        CoroutineScope(Dispatchers.IO).launch {
+            val response = EconomyManager.tryTransaction(target, currency, amount, type)
+            when (response) {
+                EconomyTransactionResponse.SUCCESS -> {
+                    val account = EconomyManager.getAccount(target)
+                    Bukkit.getScheduler().runTask(plugin, Runnable {
+                        plugin.msgConfig.getMessage(EconomyLocale.TRANSACTION_SUCCESS)
+                            .send(sender, "{balance}" to account.getBalanceString())
+                    })
+                }
 
-                        }
+                EconomyTransactionResponse.EXCEPTION -> {
+                    plugin.msgConfig.getMessage(EconomyLocale.EXCEPTION).send(sender)
+                }
 
-                        EconomyTransactionResponse.EXCEPTION -> {
-                            plugin.msgConfig.getMessage(EconomyLocale.EXCEPTION).send(sender)
-                        }
+                EconomyTransactionResponse.NOTHING_CHANGED -> {
 
-                        EconomyTransactionResponse.NOTHING_CHANGED -> {
+                    val account = EconomyManager.getAccount(target)
 
-                            if (type == EconomyTransactionType.TAKE) {
-                                EconomyManager.getAccountFromDatabase(target).thenAccept { account ->
-                                    plugin.msgConfig.getMessage(EconomyLocale.ACCOUNT_NOT_FOUND_OR_NO_MONEY)
-                                        .send(sender, "{balance}" to account.getBalanceString())
-                                }
-                                return@thenAccept
-                            }
-
-                            EconomyManager.getAccountFromDatabase(target).thenAccept { account ->
-                                plugin.msgConfig.getMessage(EconomyLocale.ACCOUNT_NOT_FOUND)
-                                    .send(sender, "{balance}" to account.getBalanceString())
-                            }
-                        }
-
-                        else -> {
-                        }
+                    if (type == EconomyTransactionType.TAKE) {
+                        Bukkit.getScheduler().runTask(plugin, Runnable {
+                            plugin.msgConfig.getMessage(EconomyLocale.ACCOUNT_NOT_FOUND_OR_NO_MONEY)
+                                .send(sender, "{balance}" to account.getBalanceString())
+                        })
+                    } else {
+                        Bukkit.getScheduler().runTask(plugin, Runnable {
+                            plugin.msgConfig.getMessage(EconomyLocale.ACCOUNT_NOT_FOUND)
+                                .send(sender, "{balance}" to account.getBalanceString())
+                        })
                     }
 
                 }
+
+                else -> {
+                }
             }
-        }.runTaskAsynchronously(plugin)
+        }
     }
 
 }

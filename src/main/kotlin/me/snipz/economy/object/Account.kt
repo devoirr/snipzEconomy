@@ -1,7 +1,7 @@
 package me.snipz.economy.`object`
 
+import me.snipz.economy.api.EconomyTransactionType
 import me.snipz.economy.management.CurrenciesManager
-import me.snipz.economy.management.EconomyManager
 import me.snipz.economy.toComponent
 import net.kyori.adventure.text.Component
 import java.math.RoundingMode
@@ -47,4 +47,19 @@ data class Account(val uuid: UUID, val balances: MutableMap<String, Double>, val
         return builder.toString()
     }
 
+    fun acceptTransaction(type: EconomyTransactionType, currency: String, amount: Double) {
+        when (type) {
+            EconomyTransactionType.ADD -> {
+                balances[currency] = balances.getOrDefault(currency, 0.0) + amount
+            }
+
+            EconomyTransactionType.SET -> {
+                balances[currency] = amount
+            }
+
+            EconomyTransactionType.TAKE -> {
+                balances[currency] = (balances.getOrDefault(currency, 0.0) - amount).coerceAtLeast(0.0)
+            }
+        }
+    }
 }

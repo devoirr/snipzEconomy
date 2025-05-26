@@ -1,5 +1,6 @@
 package me.snipz.economy.hook
 
+import kotlinx.coroutines.runBlocking
 import me.snipz.economy.api.EconomyTransactionResponse
 import me.snipz.economy.api.EconomyTransactionType
 import me.snipz.economy.management.CurrenciesManager
@@ -58,11 +59,15 @@ class EconomyVaultService(private val currencyName: String) : Economy {
     }
 
     override fun getBalance(p0: String?): Double {
-        return EconomyManager.forceAccount(Bukkit.getOfflinePlayer(p0!!).uniqueId).getBalance(currencyName)
+        val account = runBlocking {
+            EconomyManager.getAccount(Bukkit.getOfflinePlayer(p0!!).uniqueId)
+        }
+
+        return account.getBalance(currencyName)
     }
 
     override fun getBalance(p0: OfflinePlayer?): Double {
-        return EconomyManager.forceAccount(p0!!.uniqueId).getBalance(currencyName)
+        return runBlocking { EconomyManager.getAccount(p0!!.uniqueId).getBalance(currencyName) }
     }
 
     override fun getBalance(p0: String?, p1: String?): Double {
@@ -92,21 +97,21 @@ class EconomyVaultService(private val currencyName: String) : Economy {
     override fun withdrawPlayer(p0: String?, p1: Double): EconomyResponse {
         val uuid = Bukkit.getOfflinePlayer(p0!!).uniqueId
 
-        val response = EconomyManager.tryTransaction(
-            uuid,
-            CurrenciesManager.getCurrency(currencyName)!!,
-            p1,
-            EconomyTransactionType.TAKE
-        ).join()
+        return runBlocking {
+            val response = EconomyManager.tryTransaction(
+                uuid, CurrenciesManager.getCurrency(currencyName)!!,
+                p1, EconomyTransactionType.TAKE
+            )
 
-        val economyResponse = EconomyResponse(
-            p1,
-            EconomyManager.forceAccount(uuid).getBalance(currencyName),
-            if (response == EconomyTransactionResponse.SUCCESS) EconomyResponse.ResponseType.SUCCESS else EconomyResponse.ResponseType.FAILURE,
-            ""
-        )
+            val economyResponse = EconomyResponse(
+                p1,
+                EconomyManager.getAccount(uuid).getBalance(currencyName),
+                if (response == EconomyTransactionResponse.SUCCESS) EconomyResponse.ResponseType.SUCCESS else EconomyResponse.ResponseType.FAILURE,
+                ""
+            )
 
-        return economyResponse
+            return@runBlocking economyResponse
+        }
     }
 
     override fun withdrawPlayer(p0: OfflinePlayer?, p1: Double): EconomyResponse {
@@ -123,22 +128,23 @@ class EconomyVaultService(private val currencyName: String) : Economy {
 
     override fun depositPlayer(p0: String?, p1: Double): EconomyResponse {
         val uuid = Bukkit.getOfflinePlayer(p0!!).uniqueId
+        return runBlocking {
+            val response = EconomyManager.tryTransaction(
+                uuid,
+                CurrenciesManager.getCurrency(currencyName)!!,
+                p1,
+                EconomyTransactionType.ADD
+            )
 
-        val response = EconomyManager.tryTransaction(
-            uuid,
-            CurrenciesManager.getCurrency(currencyName)!!,
-            p1,
-            EconomyTransactionType.ADD
-        ).join()
+            val economyResponse = EconomyResponse(
+                p1,
+                EconomyManager.getAccount(uuid).getBalance(currencyName),
+                if (response == EconomyTransactionResponse.SUCCESS) EconomyResponse.ResponseType.SUCCESS else EconomyResponse.ResponseType.FAILURE,
+                ""
+            )
 
-        val economyResponse = EconomyResponse(
-            p1,
-            EconomyManager.forceAccount(uuid).getBalance(currencyName),
-            if (response == EconomyTransactionResponse.SUCCESS) EconomyResponse.ResponseType.SUCCESS else EconomyResponse.ResponseType.FAILURE,
-            ""
-        )
-
-        return economyResponse
+            return@runBlocking economyResponse
+        }
     }
 
     override fun depositPlayer(p0: OfflinePlayer?, p1: Double): EconomyResponse {
