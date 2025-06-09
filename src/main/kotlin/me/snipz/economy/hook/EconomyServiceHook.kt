@@ -1,16 +1,15 @@
 package me.snipz.economy.hook
 
-import me.snipz.eco.EconomyResponse
+import me.snipz.api.economy.EconomyResponse
+import me.snipz.api.economy.EconomyService
 import me.snipz.economy.api.EconomyTransactionResponse
 import me.snipz.economy.api.EconomyTransactionType
-import me.snipz.economy.database.EconomyDatabase
 import me.snipz.economy.management.CurrenciesManager
 import me.snipz.economy.management.EconomyManager
 import java.util.*
 import kotlin.math.absoluteValue
 
-class EconomyServiceHook(private val database: EconomyDatabase, private val serverId: String) :
-    me.snipz.eco.EconomyService {
+class EconomyServiceHook() : EconomyService {
 
     override suspend fun depositPlayer(
         player: UUID,
@@ -48,7 +47,7 @@ class EconomyServiceHook(private val database: EconomyDatabase, private val serv
     ): Double {
         val currency = CurrenciesManager.getCurrency(currency) ?: return 0.0
 
-        val account = database.getSuspendAccount(player, serverId)
+        val account = EconomyManager.getAccount(player)
         return account.getBalance(currency.name)
     }
 

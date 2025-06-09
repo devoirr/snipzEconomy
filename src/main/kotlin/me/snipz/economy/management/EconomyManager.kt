@@ -4,6 +4,7 @@ import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import me.snipz.economy.EconomyPlugin
 import me.snipz.economy.api.EconomyTransactionResponse
 import me.snipz.economy.api.EconomyTransactionType
@@ -13,6 +14,7 @@ import me.snipz.economy.commands.PayCommand
 import me.snipz.economy.database.EconomyDatabase
 import me.snipz.economy.`object`.Account
 import org.bukkit.Bukkit
+import org.bukkit.scheduler.BukkitRunnable
 import java.util.*
 
 object EconomyManager {
@@ -21,6 +23,7 @@ object EconomyManager {
     private lateinit var database: EconomyDatabase
 
     private val loadedPlayers = mutableMapOf<UUID, Account>()
+    private val savingQueue: Queue<Account> = LinkedList()
 
     fun onEnable(plugin: EconomyPlugin, database: EconomyDatabase) {
         this.plugin = plugin
@@ -28,9 +31,29 @@ object EconomyManager {
 
         CurrenciesManager.onEnable(plugin.config)
 
+        object : BukkitRunnable() {
+            override fun run() {
+                CoroutineScope(Dispatchers.IO).launch {
+                    while (savingQueue.isNotEmpty()) {
+                        val account = savingQueue.remove()
+                        database.saveAccount(account, plugin.serverId)
+                    }
+                }
+            }
+        }.runTaskTimerAsynchronously(plugin, 20L, 20L * 30)
+
         this.plugin.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { commands ->
             EconomyCommand(plugin).register(commands.registrar())
             PayCommand(plugin).register(commands.registrar())
+        }
+    }
+
+    fun onDisable() {
+        runBlocking {
+            while (savingQueue.isNotEmpty()) {
+                val account = savingQueue.remove()
+                database.saveAccount(account, plugin.serverId)
+            }
         }
     }
 
@@ -78,7 +101,9 @@ object EconomyManager {
             }
 
             it.acceptTransaction(type, currency.name(), amount)
-            database.tryTransaction(uuid, currency, amount, type, plugin.serverId)
+
+            savingQueue.removeAll { account -> account.uuid == uuid }
+            savingQueue.add(it)
 
             return EconomyTransactionResponse.SUCCESS
         }

@@ -2,17 +2,17 @@ package me.snipz.economy
 
 import io.papermc.paper.command.brigadier.Commands
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
-import me.snipz.database.impl.H2Database
-import me.snipz.database.impl.MySQLDatabase
-import me.snipz.eco.EconomyService
+import me.snipz.api.database.impl.H2Database
+import me.snipz.api.database.impl.MySQLDatabase
+import me.snipz.api.economy.EconomyService
+import me.snipz.api.locale.LocaleService
+import me.snipz.api.locale.objects.LocaleConfig
 import me.snipz.economy.database.EconomyDatabase
 import me.snipz.economy.hook.EconomyPlaceholders
 import me.snipz.economy.hook.EconomyServiceHook
 import me.snipz.economy.hook.EconomyVaultService
 import me.snipz.economy.hook.UsersListener
 import me.snipz.economy.management.EconomyManager
-import me.snipz.locales.LocalesRegistry
-import me.snipz.locales.objects.LocaleConfig
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
@@ -38,7 +38,7 @@ class EconomyPlugin : JavaPlugin() {
 
         this.readOrCreateServerId()
 
-        this.msgConfig = LocalesRegistry.buildLocaleConfig<EconomyLocale>(this)
+        this.msgConfig = LocaleService.buildLocaleConfig<EconomyLocale>(this)
         this.msgConfig.reload()
 
         this.initDatabase()
@@ -50,7 +50,7 @@ class EconomyPlugin : JavaPlugin() {
 
         server.servicesManager.register(
             EconomyService::class.java,
-            EconomyServiceHook(database, serverId),
+            EconomyServiceHook(),
             this,
             ServicePriority.Normal
         )
@@ -76,6 +76,10 @@ class EconomyPlugin : JavaPlugin() {
         }
 
         this.hookIntoVault()
+    }
+
+    override fun onDisable() {
+        EconomyManager.onDisable()
     }
 
     private fun initDatabase() {

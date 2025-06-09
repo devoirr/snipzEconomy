@@ -3,7 +3,7 @@ package me.snipz.economy.database
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import me.snipz.database.GeneralDatabase
+import me.snipz.api.database.AbstractDatabase
 import me.snipz.economy.api.EconomyTransactionResponse
 import me.snipz.economy.api.EconomyTransactionType
 import me.snipz.economy.api.ICurrency
@@ -13,7 +13,7 @@ import java.util.*
 
 
 class EconomyDatabase(
-    private val database: GeneralDatabase,
+    private val database: AbstractDatabase,
 ) {
 
     init {
@@ -92,6 +92,19 @@ class EconomyDatabase(
         return EconomyTransactionResponse.SUCCESS
     }
 
+    suspend fun saveAccount(account: Account, server: String) {
+        for (currency in CurrenciesManager.get()) {
+            database.update(
+                "insert into accounts (player, server, currency, amount) values (?,?,?,?) on duplicate key update amount = ?;",
+                account.uuid.toString(),
+                if (currency.global) "global" else server,
+                currency.name,
+                account.getBalance(currency.name),
+                account.getBalance(currency.name)
+            )
+        }
+    }
+
     private suspend fun positiveTransaction(
         uuid: UUID,
         currency: ICurrency,
@@ -104,8 +117,8 @@ class EconomyDatabase(
 
         val updated =
             database.update(
-                "insert into accounts (player, server, currency, amount) values (?, ?, ?, ?) on duplicate key update amount = $expression",
-                uuid, toString(), server, currency.name(), amount
+                "insert into accounts (player, server, currency, amount) values (?, ?, ?, ?) on duplicate key update amount = $expression;",
+                uuid.toString(), server, currency.name(), amount
             )
 
         if (updated == 0)

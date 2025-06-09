@@ -1,7 +1,8 @@
 package me.snipz.economy
 
-import me.snipz.locales.objects.LocaleEnum
-import me.snipz.locales.objects.Message
+import me.snipz.api.locale.objects.LocaleEnum
+import me.snipz.api.locale.objects.Message
+
 
 enum class EconomyLocale(private vararg val values: String) : LocaleEnum {
 

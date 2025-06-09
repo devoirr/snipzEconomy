@@ -37,6 +37,9 @@ class EconomyPlaceholders : PlaceholderExpansion() {
         if (args[0] != "balance")
             return null
 
+        if (args.size < 2)
+            return "Specify currency!"
+
         val currencyName = args[1]
         if (!CurrenciesManager.isCurrency(currencyName)) {
             return "Unknown currency"
